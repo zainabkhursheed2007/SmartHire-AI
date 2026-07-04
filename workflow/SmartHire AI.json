@@ -1,0 +1,1785 @@
+{
+  "name": "SmartHire AI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "candidate-application",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9675e441-c305-4cae-871c-3a5e34101329",
+      "name": "Candidate Application",
+      "webhookId": "dec90001-b6fa-408b-819f-a1fbc084e936"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b124018a-5e00-4a6c-a17b-418e459f8b87",
+              "name": "name",
+              "value": "={{$json.body.name}}",
+              "type": "string"
+            },
+            {
+              "id": "40a8bfc1-9596-4133-911a-6d6586518e26",
+              "name": "email",
+              "value": "={{$json.body.email}}",
+              "type": "string"
+            },
+            {
+              "id": "66cf65d8-fa76-4674-b515-065a4ea6ae23",
+              "name": "phone",
+              "value": "={{$json.body.phone}}",
+              "type": "string"
+            },
+            {
+              "id": "54de0012-b19d-4ab5-8111-2b00921455a9",
+              "name": "jobRole",
+              "value": "={{$json.body.jobRole}}",
+              "type": "string"
+            },
+            {
+              "id": "e21cb8b9-ae05-404f-bc10-647153b2bf1a",
+              "name": "resumeText",
+              "value": "={{$json.body.resumeText}}",
+              "type": "string"
+            },
+            {
+              "id": "a442a9b7-2b27-47fc-95a4-636fd6ba8ab9",
+              "name": "receivedTime",
+              "value": "={{$now}}",
+              "type": "string"
+            },
+            {
+              "id": "f9c9860b-6d72-4ef2-9982-bf67fb7fb554",
+              "name": "candidateId",
+              "value": "=HR-{{$now.format(\"yyyyMMddHHmmss\")}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4ad738fd-a046-4170-a60a-cb96b8d6c61e",
+      "name": "Extract Candidate Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are an expert HR recruitment assistant.\\n\\nAnalyze the following resume for the position: {{$json.jobRole}}.\\n\\nResume:\\n{{$json.resumeText}}\\n\\nEvaluate the candidate carefully and assign a score from 0 to 100 based on skills, experience, relevance to the job role, and overall suitability.\\n\\nScoring Rules:\\n80-100 = Interview\\n60-79 = Consider\\n0-59 = Reject\\n\\nReturn ONLY valid JSON in this exact format:\\n\\n{\\n\\\"candidate_summary\\\":\\\"\\\",\\n\\\"skills\\\":[],\\n\\\"years_experience\\\":\\\"\\\",\\n\\\"strengths\\\":[],\\n\\\"weaknesses\\\":[],\\n\\\"score\\\":0,\\n\\\"recommendation\\\":\\\"Interview|Consider|Reject\\\",\\n\\\"reason\\\":\\\"\\\",\\n\\\"interview_questions\\\":[]\\n}\"\n    }\n  ],\n  \"temperature\": 0.2\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "1ca06d16-34ae-4de1-aa70-c37e20f6413f",
+      "name": "AI Resume Analyzer"
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Extract Candidate Data').first().json;\n\nconst aiText = $json.choices[0].message.content;\n\nconst cleaned = aiText\n  .replace(/```json/g, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nconst parsed = JSON.parse(cleaned);\n\nreturn [\n  {\n    json: {\n      ...original,\n      candidate_summary: parsed.candidate_summary,\n      skills: Array.isArray(parsed.skills) ? parsed.skills.join(\", \") : parsed.skills,\n      years_experience: parsed.years_experience,\n      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.join(\", \") : parsed.strengths,\n      weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.join(\", \") : parsed.weaknesses,\n      score: Number(parsed.score),\n      recommendation: parsed.recommendation,\n      reason: parsed.reason,\n      interview_questions: Array.isArray(parsed.interview_questions)\n        ? parsed.interview_questions.join(\"\\n\")\n        : parsed.interview_questions\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "3c872327-489d-4227-958e-31f10f232e4a",
+      "name": "Parse AI Result"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5288807f-9504-4a3e-bbae-0f269cecf6a3",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1072,
+        160
+      ],
+      "id": "1d2998b0-f8cc-4ba8-bfba-d3aa080e6ece",
+      "name": "Check Consider Candidate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0727a071-c4a4-4482-8a96-9561ad9061f4",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 80,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "36762249-7987-410f-b23a-0ec97737cd88",
+      "name": "Check Recommendation"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appxLLPhwa8BRxOeJ",
+          "mode": "list",
+          "cachedResultName": "AI Recruitment Assistant",
+          "cachedResultUrl": "https://airtable.com/appxLLPhwa8BRxOeJ"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl8FqMN8tCNwh4rt",
+          "mode": "list",
+          "cachedResultName": "Candidates",
+          "cachedResultUrl": "https://airtable.com/appxLLPhwa8BRxOeJ/tbl8FqMN8tCNwh4rt"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{$json.name}}",
+            "Email": "={{$json.email}}",
+            "Phone": "={{$json.phone}}",
+            "Candidate ID": "={{ $json.candidateId }}",
+            "Score": "={{ $json.score }}",
+            "Job Role": "={{$json.jobRole}}",
+            "Resume Text": "={{ $json.resumeText }}",
+            "Skills": "={{ $json.skills }}",
+            "Experience": "={{ $json.years_experience }}",
+            "AI Summary": "={{ $json.candidate_summary }}",
+            "Recommendation": "={{ $json.recommendation }}",
+            "Reason": "={{ $json.reason }}",
+            "Interview Questions": "={{ $json.interview_questions }}",
+            "Status": "Consider",
+            "Received Time": "={{ $json.receivedTime }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate ID",
+              "displayName": "Candidate ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Job Role",
+              "displayName": "Job Role",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resume Text",
+              "displayName": "Resume Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Interview Questions",
+              "displayName": "Interview Questions",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Received Time",
+              "displayName": "Received Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Assignee",
+              "displayName": "Assignee",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Shortlisted",
+                  "value": "Shortlisted"
+                },
+                {
+                  "name": "Consider",
+                  "value": "Consider"
+                },
+                {
+                  "name": "Rejected",
+                  "value": "Rejected"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachments",
+              "displayName": "Attachments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachment Summary",
+              "displayName": "Attachment Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        144
+      ],
+      "id": "a711bcc7-f635-41d4-9369-6a9f5b39a448",
+      "name": "Save Consider Candidate",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "bOjLI4CfAqFRxaJE",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE",
+          "mode": "list",
+          "cachedResultName": "AI Recruitment Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Candidate ID": "={{ $json.fields['Candidate ID'] }}",
+            "Name": "={{ $json.fields.Name }}",
+            "Email": "={{ $json.fields.Email }}",
+            "Job Role": "={{ $json.fields['Job Role'] }}",
+            "Skills": "={{ $json.fields.Skills }}",
+            "Experience": "={{ $json.fields.Experience }}",
+            "Score": "={{ $json.fields.Score }}",
+            "Recommendation": "={{ $json.fields.Recommendation }}",
+            "Status": "Consider",
+            "Received Time": "={{ $json.fields['Received Time'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate ID",
+              "displayName": "Candidate ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Role",
+              "displayName": "Job Role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Received Time",
+              "displayName": "Received Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1600,
+        144
+      ],
+      "id": "f1e56e62-8933-440d-bd9c-6117788fc072",
+      "name": "Save Consider to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "iu10ZgJpcLcHvsaM",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "zainabnaseer1429@gmail.com",
+          "mode": "list",
+          "cachedResultName": "zainabnaseer1429@gmail.com"
+        },
+        "start": "={{$now.plus({days: 1}).set({hour: 11, minute: 0})}}",
+        "end": "={{$now.plus({days: 1}).set({hour: 11, minute: 30})}}",
+        "additionalFields": {
+          "attendees": [
+            "={{$json.email}}"
+          ],
+          "description": "=Candidate ID: {{$json.candidateId}}  Score: {{$json.score}}  Skills: {{$json.skills}}  Interview Questions: {{$json.interview_questions}}",
+          "location": "Google Meet",
+          "summary": "=Interview - {{$json.name}}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1088,
+        -144
+      ],
+      "id": "7090bae3-5c2b-42c0-9527-fe627ff30f95",
+      "name": "Create Interview Event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "qNdogGsb2sa90OZy",
+          "name": "Google Calendar OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0BFTKJ93G8",
+          "mode": "list",
+          "cachedResultName": "all-ai-feedback"
+        },
+        "text": "=🎉 New Candidate Shortlisted  Name: {{$json.name}}  Role: {{$json.jobRole}}  Score: {{$json.score}}  Recommendation: {{$json.recommendation}}  Candidate ID: {{$json.candidateId}}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1376,
+        -144
+      ],
+      "id": "77e18b42-c038-4ba5-b8b9-360e719e6dd5",
+      "name": "Notify HR - Shortlisted",
+      "webhookId": "6fe89fe1-a663-42b6-8281-8a7e623d3191",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "cCb9gXgqgyuISN09",
+          "name": "Slack OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appxLLPhwa8BRxOeJ",
+          "mode": "list",
+          "cachedResultName": "AI Recruitment Assistant",
+          "cachedResultUrl": "https://airtable.com/appxLLPhwa8BRxOeJ"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl8FqMN8tCNwh4rt",
+          "mode": "list",
+          "cachedResultName": "Candidates",
+          "cachedResultUrl": "https://airtable.com/appxLLPhwa8BRxOeJ/tbl8FqMN8tCNwh4rt"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{$json.name}}",
+            "Email": "={{$json.email}}",
+            "Phone": "={{$json.phone}}",
+            "Candidate ID": "={{ $json.candidateId }}",
+            "Score": "={{ $json.score }}",
+            "Job Role": "={{$json.jobRole}}",
+            "Resume Text": "={{ $json.resumeText }}",
+            "Skills": "={{ $json.skills }}",
+            "Experience": "={{ $json.years_experience }}",
+            "AI Summary": "={{ $json.candidate_summary }}",
+            "Recommendation": "={{ $json.recommendation }}",
+            "Reason": "={{ $json.reason }}",
+            "Interview Questions": "={{ $json.interview_questions }}",
+            "Status": "Shortlisted",
+            "Received Time": "={{ $json.receivedTime }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate ID",
+              "displayName": "Candidate ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Job Role",
+              "displayName": "Job Role",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resume Text",
+              "displayName": "Resume Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Interview Questions",
+              "displayName": "Interview Questions",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Received Time",
+              "displayName": "Received Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Assignee",
+              "displayName": "Assignee",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Shortlisted",
+                  "value": "Shortlisted"
+                },
+                {
+                  "name": "Consider",
+                  "value": "Consider"
+                },
+                {
+                  "name": "Rejected",
+                  "value": "Rejected"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachments",
+              "displayName": "Attachments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachment Summary",
+              "displayName": "Attachment Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1584,
+        -144
+      ],
+      "id": "7d611fe1-9700-4589-96ea-8881f4e6b330",
+      "name": "Save Shortlisted Candidate",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "bOjLI4CfAqFRxaJE",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE",
+          "mode": "list",
+          "cachedResultName": "AI Recruitment Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Candidate ID": "={{ $('Parse AI Result').item.json.candidateId }}",
+            "Name": "={{ $('Parse AI Result').item.json.name }}",
+            "Email": "={{ $('Parse AI Result').item.json.email }}",
+            "Job Role": "= {{ $('Parse AI Result').item.json.jobRole }}",
+            "Experience": "={{ $('Parse AI Result').item.json.years_experience }}",
+            "Score": "={{ $('Parse AI Result').item.json.score }}",
+            "Recommendation": "={{ $('Parse AI Result').item.json.recommendation }}",
+            "Received Time": "={{ $('Parse AI Result').item.json.receivedTime }}",
+            "Status": "Shortlisted",
+            "Skills": "={{ $('Parse AI Result').item.json.skills }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate ID",
+              "displayName": "Candidate ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Role",
+              "displayName": "Job Role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Received Time",
+              "displayName": "Received Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        -144
+      ],
+      "id": "f6ad7ed9-6ed9-4ddc-92c9-c42da4981cc0",
+      "name": "Save Shortlisted to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "iu10ZgJpcLcHvsaM",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Parse AI Result').item.json.email }}",
+        "subject": "=Interview Invitation - {{ $('Parse AI Result').item.json.jobRole }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e5e5e5; border-radius: 10px; padding: 24px; color: #333;\">\n  \n  <h2 style=\"color: #2e86c1; margin-bottom: 10px;\">\n    🎉 Congratulations, {{ $('Parse AI Result').item.json.name }}!\n  </h2>\n\n  <p>\n    We are pleased to inform you that you have been <b>shortlisted</b> for the \n    <b>{{ $('Parse AI Result').item.json.jobRole }}</b> position.\n  </p>\n\n  <div style=\"background-color: #f4f8fb; padding: 16px; border-radius: 8px; margin: 20px 0;\">\n    <h3 style=\"margin-top: 0; color: #2e86c1;\">Interview Details</h3>\n    <p><b>📅 Date:</b> Tomorrow</p>\n    <p><b>🕚 Time:</b> 11:00 AM</p>\n    <p><b>⏳ Duration:</b> 30 Minutes</p>\n  </div>\n\n  <p>\n    Our HR team will contact you if there are any updates regarding the interview.\n  </p>\n\n  <p style=\"margin-top: 24px;\">\n    Best regards,<br>\n    <b>HR Team</b>\n  </p>\n\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2048,
+        -144
+      ],
+      "id": "193bd35e-97e3-4628-b160-0b559bae6bb0",
+      "name": "Send Interview Invitation",
+      "webhookId": "f6d15ce6-2820-4ca2-b1e9-8b8eb69d87de",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "u8tcYUNi601wLOzG",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appxLLPhwa8BRxOeJ",
+          "mode": "list",
+          "cachedResultName": "AI Recruitment Assistant",
+          "cachedResultUrl": "https://airtable.com/appxLLPhwa8BRxOeJ"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl8FqMN8tCNwh4rt",
+          "mode": "list",
+          "cachedResultName": "Candidates",
+          "cachedResultUrl": "https://airtable.com/appxLLPhwa8BRxOeJ/tbl8FqMN8tCNwh4rt"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{$json.name}}",
+            "Email": "={{$json.email}}",
+            "Phone": "={{$json.phone}}",
+            "Candidate ID": "={{ $json.candidateId }}",
+            "Score": "={{ $json.score }}",
+            "Job Role": "={{$json.jobRole}}",
+            "Resume Text": "={{ $json.resumeText }}",
+            "Skills": "={{ $json.skills }}",
+            "Experience": "={{ $json.years_experience }}",
+            "AI Summary": "={{ $json.candidate_summary }}",
+            "Recommendation": "={{ $json.recommendation }}",
+            "Reason": "={{ $json.reason }}",
+            "Interview Questions": "={{ $json.interview_questions }}",
+            "Status": "Rejected",
+            "Received Time": "={{ $json.receivedTime }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate ID",
+              "displayName": "Candidate ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Job Role",
+              "displayName": "Job Role",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Resume Text",
+              "displayName": "Resume Text",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "AI Summary",
+              "displayName": "AI Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reason",
+              "displayName": "Reason",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Interview Questions",
+              "displayName": "Interview Questions",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Received Time",
+              "displayName": "Received Time",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Assignee",
+              "displayName": "Assignee",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Shortlisted",
+                  "value": "Shortlisted"
+                },
+                {
+                  "name": "Consider",
+                  "value": "Consider"
+                },
+                {
+                  "name": "Rejected",
+                  "value": "Rejected"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachments",
+              "displayName": "Attachments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachment Summary",
+              "displayName": "Attachment Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        416
+      ],
+      "id": "68a77e21-d73e-433c-a57d-c9c2008fc87c",
+      "name": "Save Rejected Candidate",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "bOjLI4CfAqFRxaJE",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE",
+          "mode": "list",
+          "cachedResultName": "AI Recruitment Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1oiBKkyPug_-XOC6pQ5RjQnwCSdTssiBkEtd4VsxLerE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Candidate ID": "={{ $json.fields['Candidate ID'] }}",
+            "Name": "={{ $json.fields.Name }}",
+            "Email": "={{ $json.fields.Email }}",
+            "Job Role": "={{ $json.fields['Job Role'] }}",
+            "Skills": "={{ $json.fields.Skills }}",
+            "Experience": "={{ $json.fields.Experience }}",
+            "Score": "={{ $json.fields.Score }}",
+            "Recommendation": "={{ $json.fields.Recommendation }}",
+            "Received Time": "={{ $json.fields['Received Time'] }}",
+            "Status": "Rejected"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Candidate ID",
+              "displayName": "Candidate ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Job Role",
+              "displayName": "Job Role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Experience",
+              "displayName": "Experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation",
+              "displayName": "Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Received Time",
+              "displayName": "Received Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1600,
+        416
+      ],
+      "id": "99d45b21-3ea9-4728-a6cf-20539c3e8c30",
+      "name": "Save Rejected to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "iu10ZgJpcLcHvsaM",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.Email}}",
+        "subject": "=Application Update - {{ $('Parse AI Result').item.json.jobRole }}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e5e5e5; border-radius: 10px; padding: 24px; color: #333;\">\n  <h2 style=\"color: #555;\">Application Update</h2>\n\n  <p>Hi {{ $('Parse AI Result').item.json.name }},</p>\n\n  <p>\n    Thank you for applying for the \n    <b>{{ $('Parse AI Result').item.json.jobRole }}</b> position.\n  </p>\n\n  <p>\n    After carefully reviewing your application, we have decided not to move forward at this time.\n  </p>\n\n  <p>\n    We appreciate your interest and wish you all the best in your future opportunities.\n  </p>\n\n  <p style=\"margin-top: 24px;\">\n    Best regards,<br>\n    <b>HR Team</b>\n  </p>\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1808,
+        416
+      ],
+      "id": "585c576b-483d-4b6a-8953-c46a647ba82e",
+      "name": "Send Rejection Email",
+      "webhookId": "f6d15ce6-2820-4ca2-b1e9-8b8eb69d87de",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "u8tcYUNi601wLOzG",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.Email}}",
+        "subject": "=Application Update - {{$json[\"Job Role\"]}}",
+        "message": "=<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e5e5e5; border-radius: 10px; padding: 24px; color: #333;\">\n\n  <h2 style=\"color: #f39c12; margin-bottom: 10px;\">\n    📋 Application Update\n  </h2>\n\n  <p>Hi <strong>{{ $('Parse AI Result').item.json.name }}</strong>,</p>\n\n  <p>\n    Thank you for applying for the\n    <strong>{{ $('Parse AI Result').item.json.jobRole }}</strong> position.\n  </p>\n\n  <p>\n    We have carefully reviewed your application and are pleased to let you know that your profile is currently\n    <strong>under consideration</strong>.\n  </p>\n\n  <div style=\"background-color: #fff8e6; padding: 16px; border-left: 5px solid #f39c12; border-radius: 6px; margin: 20px 0;\">\n    <strong>📌 Current Status:</strong><br>\n    Your application is being reviewed by our hiring team. If your profile matches our requirements, we will contact you regarding the next stage of the recruitment process.\n  </div>\n\n  <p>\n    Thank you for your patience and interest in joining our team. We appreciate the time and effort you invested in your application.\n  </p>\n\n  <p style=\"margin-top: 30px;\">\n    Best regards,<br>\n    <strong>HR Team</strong>\n  </p>\n\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1808,
+        144
+      ],
+      "id": "bd899a69-66cf-48a6-bc91-eeae9839a7bf",
+      "name": "Send Under Review Email",
+      "webhookId": "f6d15ce6-2820-4ca2-b1e9-8b8eb69d87de",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "u8tcYUNi601wLOzG",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Candidate Application": {
+      "main": [
+        [
+          {
+            "node": "Extract Candidate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Candidate Data": {
+      "main": [
+        [
+          {
+            "node": "AI Resume Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Resume Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Result": {
+      "main": [
+        [
+          {
+            "node": "Check Recommendation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Recommendation": {
+      "main": [
+        [
+          {
+            "node": "Create Interview Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Consider Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Consider Candidate": {
+      "main": [
+        [
+          {
+            "node": "Save Consider Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Rejected Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Consider Candidate": {
+      "main": [
+        [
+          {
+            "node": "Save Consider to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Consider to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Under Review Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Interview Event": {
+      "main": [
+        [
+          {
+            "node": "Notify HR - Shortlisted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify HR - Shortlisted": {
+      "main": [
+        [
+          {
+            "node": "Save Shortlisted Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Shortlisted Candidate": {
+      "main": [
+        [
+          {
+            "node": "Save Shortlisted to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Shortlisted to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Interview Invitation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Rejected Candidate": {
+      "main": [
+        [
+          {
+            "node": "Save Rejected to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Rejected to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Rejection Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a62c6271-cc72-4c24-ac72-95faa7b482bd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "86c0783dbe068162c2474c4b9bdf869cbf10de80e3aad23b208f17f936f444db"
+  },
+  "nodeGroups": [],
+  "id": "w9RipLtNpa8unz0m",
+  "tags": []
+}
