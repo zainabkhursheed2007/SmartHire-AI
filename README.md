@@ -26,7 +26,11 @@ AI-powered recruitment automation workflow built with n8n and Groq AI.
 
 ## Workflow
 
-(Insert screenshot)
+<img width="738" height="325" alt="image" src="https://github.com/user-attachments/assets/7648c6f5-6595-4d69-b1f2-036b04e65d45" />
+
+<img width="736" height="400" alt="image" src="https://github.com/user-attachments/assets/5ca529ea-a881-43e4-8d03-d918deff206b" />
+
+
 
 ## Architecture
 
